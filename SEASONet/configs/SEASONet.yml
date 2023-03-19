@@ -4,7 +4,6 @@ model:
     box_nms_thresh: 0.3
     box_score_thresh: 0.5
 data:
-    dataset: diydata
     img_rows: 128
     img_cols: 'same'
     path: /Data
