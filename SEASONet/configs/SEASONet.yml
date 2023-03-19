@@ -1,0 +1,38 @@
+# default as SEASONet
+model:
+    arch: SEASONet
+    box_nms_thresh: 0.3
+    box_score_thresh: 0.5
+data:
+    dataset: diydata
+    img_rows: 128
+    img_cols: 'same'
+    path: /Data
+    test_path: /TEST
+    num_classes: 2
+    n_maxdisp: 192
+    area_thd: 4
+    label_is_nos: False
+    footprint_mode: False
+    seasons_mode: 'intact'
+    RGB_mode: False
+    sar_data: False
+    channels: 20
+    if_buffer: True
+    buffer_storeylevel: 0
+    #buffer_storeylevel will be added 1 in data processing
+    buffer_assist: False
+training:
+    shuffle: True
+    lr: 0.0001
+    nos_task: True
+    epochs: 71
+    batch_size: 8
+    resume: ''
+    device: 'cuda'
+    check_val_every_n_epoch : 1
+    max_epochs : 2000
+    gt_rpn_training: True
+test:
+    resume: '/CKPTS/V5.1Buffer0/finetune_70.tar'
+savepath: /Results/Maskres50_result_V5.1Buffer0_70_SHANGHAI_OURS
