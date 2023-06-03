@@ -1,0 +1,39 @@
+model:
+    arch: maskrcnn_res50_ssnvvh
+    box_nms_thresh: 0.3
+    box_score_thresh: 0.5
+data:
+    img_rows: 128
+    img_cols: 'same'
+    path: /home/dell/lsq/Data
+#    test_path: /media/dell/shihaoze1/lsq/Ukraine/Ukrine_2023_TEST
+    test_path: /home/dell/lsq/Data/Test
+#    test_path: /media/dell/shihaoze1/lsq/52City/TEST_BSG
+    num_classes: 2
+    n_maxdisp: 192
+    area_thd: 1
+    label_is_nos: True
+    footprint_mode: False
+    seasons_mode: 'intact'
+    RGB_mode: False
+    sar_data: False
+    channels: 20
+    if_buffer: True
+    buffer_pixels: 1
+    buffer_assist: 'sup_assist'
+training:
+    shuffle: True
+    lr: 0.0001
+    nos_task: True
+    epochs: 101
+    batch_size: 8
+    resume: ''
+    device: 'cuda'
+    check_val_every_n_epoch : 1
+    max_epochs : 2000
+    gt_rpn_training: True
+    latnseason: 2
+    supervision: True
+test:
+    resume: '/media/dell/徐朋磊的移动固态硬盘/lsq/CKPTS/SEASONet_SUP_decayat20_lat/finetune_60.tar'
+savepath: /media/dell/shihaoze1/lsq/52City/Results/SEASONet_SUP_decayat20_lat_60
