@@ -1,6 +1,6 @@
 import torch
 import torchvision
-
+import numpy as np
 import torch.nn.functional as F
 from torch import nn, Tensor
 import tracemalloc
@@ -674,6 +674,9 @@ class RoIHeads(nn.Module):
 
         boxes_per_image = [boxes_in_image.shape[0] for boxes_in_image in proposals]
         pred_boxes = self.box_coder.decode(box_regression, proposals)
+        # print('---------pred_boxes----------', pred_boxes.shape, len(pred_boxes))
+        # print('---------boxes_per_image----------', boxes_per_image, np.array(boxes_per_image).sum())
+        # print('---------box_regression----------', box_regression.shape, box_regression)
 
         pred_scores = F.softmax(class_logits, -1)
 
@@ -683,17 +686,19 @@ class RoIHeads(nn.Module):
         all_boxes = []
         all_scores = []
         all_labels = []
+
         for boxes, scores, image_shape in zip(pred_boxes_list, pred_scores_list, image_shapes):
             boxes = box_ops.clip_boxes_to_image(boxes, image_shape)
 
             # create labels for each prediction
             labels = torch.arange(num_classes, device=device)
             labels = labels.view(1, -1).expand_as(scores)
-
             # remove predictions with the background label
+
             boxes = boxes[:, 1:]
             scores = scores[:, 1:]
             labels = labels[:, 1:]
+
 
             # batch everything, by making every class prediction be a separate instance
             boxes = boxes.reshape(-1, 4)
@@ -759,12 +764,12 @@ class RoIHeads(nn.Module):
 
         if self.training:
             assert labels is not None and regression_targets is not None
-            loss_classifier, loss_box_reg = fastrcnn_loss(
-                class_logits, box_regression, labels, regression_targets)
-            losses = {
-                "loss_classifier": loss_classifier,
-                "loss_box_reg": loss_box_reg
-            }
+            # loss_classifier, loss_box_reg = fastrcnn_loss(
+            #     class_logits, box_regression, labels, regression_targets)
+            # losses = {
+            #     "loss_classifier": loss_classifier,
+            #     "loss_box_reg": loss_box_reg
+            # }
 
         else:
             boxes, scores, labels = self.postprocess_detections(class_logits, box_regression, proposals, image_shapes)
@@ -808,50 +813,6 @@ class RoIHeads(nn.Module):
             else:
                 for nos_per_img, r in zip(nos_predict, result):
                     r["nos"] = nos_per_img.squeeze_(-1)
-
-        # if self.has_mask():
-        #     mask_proposals = [p["boxes"] for p in result]
-        #     if self.training:
-        #         assert matched_idxs is not None
-        #         # during training, only focus on positive boxes
-        #         num_images = len(proposals)
-        #         mask_proposals = []
-        #         pos_matched_idxs = []
-        #         for img_id in range(num_images):
-        #             pos = torch.where(labels[img_id] > 0)[0]
-        #             mask_proposals.append(proposals[img_id][pos])
-        #             pos_matched_idxs.append(matched_idxs[img_id][pos])
-        #     else:
-        #         pos_matched_idxs = None
-        #
-        #     if self.mask_roi_pool is not None:
-        #         mask_features = self.mask_roi_pool(features, mask_proposals, image_shapes)
-        #         mask_features = self.mask_head(mask_features)
-        #         mask_logits = self.mask_predictor(mask_features)
-        #     else:
-        #         raise Exception("Expected mask_roi_pool to be not None")
-        #
-        #     loss_mask = {}
-        #     if self.training:
-        #         assert targets is not None
-        #         assert pos_matched_idxs is not None
-        #         assert mask_logits is not None
-        #
-        #         gt_masks = [t["masks"] for t in targets]
-        #         gt_labels = [t["labels"] for t in targets]
-        #         rcnn_loss_mask = maskrcnn_loss(
-        #             mask_logits, mask_proposals,
-        #             gt_masks, gt_labels, pos_matched_idxs)
-        #         loss_mask = {
-        #             "loss_mask": rcnn_loss_mask
-        #         }
-        #     else:
-        #         labels = [r["labels"] for r in result]
-        #         masks_probs = maskrcnn_inference(mask_logits, labels)
-        #         for mask_prob, r in zip(masks_probs, result):
-        #             r["masks"] = mask_prob
-        #
-        #     losses.update(loss_mask)
 
         # keep none checks in if conditional so torchscript will conditionally
         # compile each branch

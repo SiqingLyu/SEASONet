@@ -399,9 +399,9 @@ class BackboneWithFPN(nn.Module):
         self.out_channels = out_channels
 
     def forward(self, x):
-        x = self.body(x)
-        x = self.fpn(x)
-        return x
+        x1 = self.body(x)
+        x = self.fpn(x1)
+        return x1, x
 
 
 class DoubleBackboneWithFPN(nn.Module):

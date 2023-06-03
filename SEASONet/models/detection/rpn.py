@@ -337,9 +337,11 @@ class RegionProposalNetwork(torch.nn.Module):
             losses = {}
             if self.training:
                 # boxes = [sample['boxes'] for sample in targets]
-                boxes = [torch.tensor([]).reshape(0,4).to(features['0']) for i in range(len(images.image_sizes))]
+                boxes = [torch.tensor([]).reshape(0, 4).to(features['0']) for i in range(len(images.image_sizes))]
+                # boxes = [torch.tensor([]).reshape(0, 4).to(features['0'])]
             else:
                 boxes = [sample['boxes'] for sample in targets]
+                # print(boxes)
 
             return boxes, losses
         else:

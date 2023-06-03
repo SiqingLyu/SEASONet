@@ -39,7 +39,7 @@ class GeneralizedRCNN(nn.Module):
 
         return detections
 
-    def forward(self, images, targets=None):
+    def forward(self, images, targets=None, sup=None):
         # type: (List[Tensor], Optional[List[Dict[str, Tensor]]]) -> Tuple[Dict[str, Tensor], List[Dict[str, Tensor]]]
         """
         Args:
@@ -90,7 +90,7 @@ class GeneralizedRCNN(nn.Module):
                     raise ValueError("All bounding boxes should have positive height and width."
                                      " Found invalid box {} for target at index {}."
                                      .format(degen_bb, target_idx))
-        features = self.backbone(images.tensors)
+        res_features, features = self.backbone(images.tensors)
         if isinstance(features, torch.Tensor):
             features = OrderedDict([('0', features)])
 
@@ -101,6 +101,11 @@ class GeneralizedRCNN(nn.Module):
         losses = {}
         losses.update(detector_losses)
         losses.update(proposal_losses)
+
+        if self.training:
+            if sup is not None:
+                semantics, semantic_losses = self.semantic_heads(res_features, sup)
+                losses.update(semantic_losses)
 
         if torch.jit.is_scripting():
             if not self._has_warned:
