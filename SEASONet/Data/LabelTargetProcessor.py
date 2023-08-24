@@ -13,22 +13,22 @@ import os
 from typing import Optional
 import cv2
 import sys
-sys.path.append('/home/dell/lsq/LSQNetModel_on')
+sys.path.append('/home/dell/lsq/SEASONet_230824')
 # sys.path.append('D:\python文件库\V100\LSQNetModel_on')
 from pytorch_tools import *
 from tools import make_dir
 import tiffile as tif
-from Data.ImageProcessor import Labels
+# from Data.ImageProcessor import Labels
 
 
 class LabelTarget:
     def __init__(self,
-                 label_data: ndarray = None, pre_data = None,
+                 label_data: ndarray = None, height_data = None,
                  target_data: dict = None):
         assert label_data is not None or target_data is not None, 'Must input some Data!'
         self.label = label_data
         self.target = target_data
-        self.pre = pre_data
+        self.height = height_data
 
     def from_target(self, background: int = 0):
         """
@@ -52,29 +52,39 @@ class LabelTarget:
                   image_id: list = None,
                   file_name: str = None,
                   if_buffer_proposal = False,
-                  buffer_storeylevel = 0,
+                  buffer_pixels = 0,
                   buffer_assist = False,
                   img_size=128,
                   background: int = 0,
+                  tan_factor: int = None,
                   **kwargs):
         assert self.label is not None, 'Must input label data to get target'
-        pre_data = np.copy(self.pre)
-        boxes, masks, labels, areas, noses = self.get_box_mask_value_area(**kwargs)
+        boxes, masks, labels, areas, noses, heights = self.get_box_mask_value_area(**kwargs)
         assert len(boxes) > 0
         if if_buffer_proposal:
             for ii in range(len(boxes)):
-                # nos = noses[ii]
-                nos = buffer_storeylevel
-                if buffer_assist:
-                    nos = np.mean(pre_data[masks[ii] != background])
+                if buffer_assist == 'nos_assist':
+                    buffer_pixels = int(np.ceil(noses[ii]/3 + 1))
+                elif buffer_assist == 'pre_assist':
+                    height = heights[ii]
+                    buffer_pixels = int(np.around(height) / 3)  # for nos to buffer pixels 3(*3)~=10m/pixel
+                elif buffer_assist == 'sup_assist':
+                    height = heights[ii]
+                    buffer_pixels = int(np.ceil(height / 9))  # for height to buffer pixels 9~=10m/pixel
+                if tan_factor is not None:
+                    buffer_pixels = int(np.around(buffer_pixels / (tan_factor)))
+                # if buffer_assist:
+                #     nos = np.mean(pre_data[masks[ii] != background])
                 box = boxes[ii]
                 x_min, y_min, x_max, y_max = box  # west, north, east, south
-                xbuf_min, ybuf_min, xbuf_max, ybuf_max = x_min - 0, y_min - int(
-                    np.ceil(nos / 3) + 1), x_max + 0, y_max
+                xbuf_min, ybuf_min, xbuf_max, ybuf_max = x_min - 0, y_min - buffer_pixels, x_max + 0, y_max
+                # xbuf_min, ybuf_min, xbuf_max, ybuf_max = x_min - 0, y_min, x_max + 0, y_max + buffer_pixels
                 if ybuf_min >= ybuf_max:
                     ybuf_min = ybuf_max - 1
-                y_min, x_min, y_max, x_max = ybuf_min if ybuf_min > 0 else 0, xbuf_min if xbuf_min > 0 else 0, \
-                                                     ybuf_max, xbuf_max if xbuf_max < img_size else img_size  # row is y, column is x
+                y_min, x_min, y_max, x_max = ybuf_min if ybuf_min > 0 else 0,\
+                                             xbuf_min if xbuf_min > 0 else 0, \
+                                             ybuf_max if ybuf_max < img_size else img_size,\
+                                             xbuf_max if xbuf_max < img_size else img_size  # row is y, column is x
                 buffer_box_rc = [x_min, y_min, x_max, y_max]
                 boxes[ii] = buffer_box_rc
         target = {
@@ -85,21 +95,23 @@ class LabelTarget:
             'iscrowd': torch.tensor([0] * len(boxes)),
             'image_id': torch.tensor(image_id),
             'nos': torch.FloatTensor(noses),
-            'file_name': file_name,
+            'file_name': file_name
         }
         self.target = target
         return target
 
     def to_target_cpu(self, **kwargs):
         assert self.label is not None, 'Must input label data to get target'
-        boxes, masks, labels, areas, noses = self.get_box_mask_value_area(**kwargs)
+        boxes, masks, labels, areas, noses, heights = self.get_box_mask_value_area(**kwargs)
+        if boxes is None:
+            return None
         assert len(boxes) > 0
         target = {
             'boxes': np.array(boxes),
             'labels': np.array(labels, dtype=np.int64),
             'masks': np.array(masks, dtype=np.uint8),
             'area': np.array(areas, dtype=np.float),
-            'nos': np.array(noses,  dtype=np.float),
+            'nos': np.array(noses,  dtype=np.float)
         }
         self.target = target
         return target
@@ -122,11 +134,11 @@ class LabelTarget:
         return ret
 
     def get_box_mask_value_area(self,
-                                area_thd: int = 4,
+                                area_thd: int = 1,
                                 mask_mode: str = 'value',
                                 background: int = 0,
                                 label_is_value: bool = False,
-                                value_mode: str = 'argmax'):
+                                value_mode: str = 'mean'):
         """
         use skimage.measure to get boxes, masks and the values, the areas of them
         :param label_is_value:
@@ -137,8 +149,9 @@ class LabelTarget:
         """
         assert mask_mode in ['value', '01'], 'mask_mode must in [value, 01]'
         data = np.copy(self.label)
+        height_data = np.copy(self.height) if self.height is not None else None
         value_region = label(data, connectivity=2, background=background)
-        boxes, masks, labels, areas, nos_list = [], [], [], [], []
+        boxes, masks, labels, areas, nos_list, heights = [], [], [], [], [], []
         for region in regionprops(value_region):
             if region.area < area_thd: continue
             # region.bbox垂直方向为x， 而目标检测中水平方向为x
@@ -150,17 +163,26 @@ class LabelTarget:
                 value = np.bincount(data[m]).argmax()
             if value_mode == 'mean':
                 value = np.mean(data[m])
+
+            if value_mode == 'meanheight':
+                #from floor to height
+                value = 3 * np.mean(data[m])
+
+            if height_data is not None:
+                height = np.mean(height_data[m])
+                heights.append(height)
+
             nos_list.append(value)
             masks.append(m)
             labels.append(value if label_is_value else 1)
             areas.append(region.area)
         if len(boxes) == 0:
-            return None, None, None, None, None
+            return None, None, None, None, None, None
         assert background not in labels
         masks = np.array(masks)
         if mask_mode is '01':
             masks = np.where(masks, 1, 0)
-        return np.array(boxes), masks, np.array(labels), np.array(areas), np.array(nos_list)
+        return np.array(boxes), masks, np.array(labels), np.array(areas), np.array(nos_list), np.array(heights)
 
     def get_box_mask_value_area_pre(self,
                                 area_thd: int = 4,

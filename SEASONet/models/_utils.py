@@ -56,6 +56,7 @@ class IntermediateLayerGetter(nn.ModuleDict):
 
         super(IntermediateLayerGetter, self).__init__(layers)
         self.return_layers = orig_return_layers
+        self.out_features = {'Features_num': len(self.return_layers)}
 
     def forward(self, x):
         out = OrderedDict()
@@ -64,4 +65,5 @@ class IntermediateLayerGetter(nn.ModuleDict):
             if name in self.return_layers:
                 out_name = self.return_layers[name]
                 out[out_name] = x
+        self.out_features = out
         return out

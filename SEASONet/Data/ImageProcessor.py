@@ -10,6 +10,9 @@ from numpy import ndarray
 import os
 import tiffile as tif
 import cv2
+import sys
+from math import pi
+sys.path.append('/home/dell/lsq/SEASONet_230824')
 
 IMG_EXTENSIONS = [
     '.jpg', '.JPG', '.jpeg', '.JPEG',
@@ -35,13 +38,16 @@ city_dict = {
     'ZhangUkrineWAR2023': 1001
 
 }
-
-
+City_latitudes = np.load('/home/dell/lsq/LSQNetModel_generalize/Data/City_latitudes.npy')  # [name, longtitude, latitude]
+LATRANGE = np.max(City_latitudes[:,1].astype(float)) -  np.min(City_latitudes[:,1].astype(float))
+City_latitudes = City_latitudes.tolist()
 class Images:
     def __init__(self, img_data: ndarray = None, img_path: str = None):
         assert (img_data is not None) or (img_path is not None), 'No img data or img path input!'
         if img_path is not None:
             self.img_path = img_path
+            self.get_info()
+
         self.img_data = img_data if img_data is not None else self.read_img()
         self.max_value, self.min_value = self.get_range()
         self.pre_process()
@@ -110,11 +116,54 @@ class Images:
         for cat_data in cat_datas:
             self.cat_image(cat_data, **kwargs)
 
+    def get_info(self):
+        self.file_name = (self.img_path.split('/')[-1]).split('.')[0]
+        # self.file_name = (self.file_name.split('\\')[-1])
+        self.city_name = self.file_name.split('_')[0]
+        # print('------------------', self.file_name, '-------------------')
+        self.image_id = [int(city_dict[self.city_name]), int(self.file_name.split('_')[1]),
+                         int(self.file_name.split('_')[2])]
+
+    def get_latnseason(self, buffer_pixels = 20, latnseason=1):
+        if latnseason == 1:
+            storey_fatctor = buffer_pixels
+            result = []  #[days to summer solstice, latitude]
+            if 'spring' in self.img_path or 'fall' in self.img_path:
+                result.append(90.0)
+            elif 'winter' in self.img_path:
+                result.append(180.0)
+            elif 'summer' in self.img_path:
+                result.append(0.0)
+            # print(self.img_path)
+            assert len(result) == 1
+            for city_lat in City_latitudes:
+                if city_lat[0] == self.city_name:
+                    result.append(city_lat[1])
+            result = np.array(result).astype('float')
+            sun_angle = (1 - result[0]/90) * 23.5
+            sun_elevation_noon = 90 - ((result[1] - sun_angle) if (result[1] - sun_angle) > 0 else 0)
+            tan_factor = storey_fatctor/(np.tan(sun_elevation_noon))
+            result[0] /= 180.0
+            result[1] /= LATRANGE
+            result = np.array(result).astype(np.float32)
+        elif latnseason == 2:
+            storey_fatctor = buffer_pixels
+            result = []  # [latitude]
+            for city_lat in City_latitudes:
+                if city_lat[0] == self.city_name:
+                    result.append(city_lat[2])
+            result = np.array(result).astype('float')
+            sun_angle = - 15
+            sun_elevation_noon = 90 - ((result[0] - sun_angle) if (result[0] - sun_angle) > 0 else 0)
+            tan_factor = (np.tan(pi*sun_elevation_noon / 180))
+            tan_buffer = storey_fatctor / tan_factor
+            result[0] /= LATRANGE
+            result = np.array(result).astype(np.float32)
+        return result, tan_factor, int(np.around(tan_buffer))
 
 class Labels(Images):
     def __init__(self, lab_data: ndarray = None, lab_path: str = None):
         super(Labels, self).__init__(lab_data, lab_path)
-        self.get_info()
 
     def pre_process(self):
         return
@@ -131,10 +180,3 @@ class Labels(Images):
         fp = np.where(data != background, 1, 0)
         return fp
 
-    def get_info(self):
-        self.file_name = (self.img_path.split('/')[-1]).split('.')[0]
-        # self.file_name = (self.file_name.split('\\')[-1])
-        self.city_name = self.file_name.split('_')[0]
-        # print('------------------', self.file_name, '-------------------')
-        self.image_id = [int(city_dict[self.city_name]), int(self.file_name.split('_')[1]),
-                         int(self.file_name.split('_')[2])]

@@ -19,9 +19,6 @@ def add(num1, num2):
 
 
 def detach_all(contain):
-    '''
-    detach dict data from cuda
-    '''
     if isinstance(contain, dict):
         ret = {}
         for k, v in contain.items():
@@ -57,9 +54,6 @@ def make_log(pre,loc,*args):
 
 
 def dict_to_device(dictionary, device):
-    '''
-    put a dict into target device
-    '''
     for key, value in dictionary.items():
         if type(dictionary[key]) is not str:
             dictionary[key] = dictionary[key].to(device)
@@ -67,9 +61,6 @@ def dict_to_device(dictionary, device):
 
 
 def dicts_to_device(dictionary_list, device):
-    '''
-    put dicts into target device
-    '''
     for i in range(len(dictionary_list)):
         dictionary_list[i] = dict_to_device(dictionary_list[i], device)
     return dictionary_list

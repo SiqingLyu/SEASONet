@@ -1,9 +1,3 @@
-"""
-Date: 2022.9.20
-Author: Lv
-this class aims to create a class which contains all the operation on Labels
-Last coded date: 2022.12.20
-"""
 import numpy as np
 import os
 import tifffile as tif
@@ -136,6 +130,50 @@ def get_filelist_keywords(data_path, keywords):
         FileList = FileList_keyword
     return FileList
 
+#
+# def get_polygons_shpfile(path):
+#     '''
+#     to read a shp file and convert the data to list type
+#     :param path:  file path where the target shp file is
+#     :return: a list which contains all the points and the polygons
+#     '''
+#     shp_f = geopandas.read_file(path)
+#     polygon = shp_f.geometry.to_json()
+#     polygon_dict = json.loads(polygon)
+#     polygon_dict = polygon_dict["features"]
+#     return polygon_dict
+
+
+# def cal_shp_area(polygons):
+#     '''
+#     to calculate the area of a shp file
+#     :param dict: input shp file dictionary
+#     :return: total area
+#     '''
+#     area_total = 0
+#     len_dict = len(polygons)
+#     with tqdm(total=len_dict) as pbar:
+#         for i in range(0,len_dict):
+#             if polygons[i]["geometry"]["coordinates"][0].__len__() >= 3:
+#
+#                 data = polygons[i]["geometry"]["coordinates"][0]
+#                 try:
+#                     area_total += Polygon(data).convex_hull.area
+#                 except(AssertionError):
+#                     # print("Assertion Error occurs ~\n")
+#                     area_total+=0
+#                 pbar.set_postfix(total_area = area_total)
+#                 pbar.update()
+#     return area_total
+
+#
+# def get_shp_infos(shp_path):
+#     file = shapefile.Reader(shp_path)
+#     shapes = file.shapes()  # read all the features
+#     records = file.records()
+#     fields = file.fields
+#     return records, fields
+
 
 def transpose_list(list):
     return zip(*list)
@@ -214,3 +252,9 @@ def rewrite_tif_batch(path, save_path):
         filepath = filepath_list[ii]
         data = tif.imread(filepath)
         tif.imsave(os.path.join(save_path, filename + '.tif'), data)
+
+#
+# if __name__ == '__main__':
+#    path = r'C:\Users\lenovo\Desktop\实验\results\Maskres50_result_v9_rpnasknown'
+#    # pred_threshold_batch(path,path+'_threshold',5,'pred')
+#    label_round_batch(path, save_path=path+'_round')
