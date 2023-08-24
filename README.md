@@ -10,11 +10,11 @@ pytorch-lightning 0.7.6
 You can change the network settings in SEASONet/configs and train the network in SEASONet/Mask-main/train.py  
 ## configs
 ### model
-arch(network name);box_nms_thresh; box_nms_thresh
+arch(network name)
 ### data
-path(dataset file path); area_thd(pixel numbers threshold to ignore the too small buildings); seasons_mode(how the seasonal data would be used); channels(input data channel number); if_buffer(use or not use the building buffer box); buffer_storeylevel(how many pixels would the buffer box expand to the north, e.g., buffer_storeylevel/3 +1)
+path(dataset file path); area_thd(pixel numbers threshold to ignore the too small buildings); seasons_mode(how the seasonal data would be used); channels(input data channel number); if_buffer(use or not use the building buffer box); buffer_pixels(how many pixels would the buffer box expand to the north).
 ### training
-lr; batch_size; epochs; gt_rpn_training(default as True to use the footprint data)
+lr; batch_size; epochs; gt_rpn_training(default as True)
 ### test
 resume(the checkpoint file to test the model)
 ### savepath
