@@ -17,7 +17,6 @@ import tracemalloc
 BACKGROUND = 0
 
 
-
 class nos_head(nn.Module):
     def __init__(self, in_channels, representation_size):
         super(nos_head, self).__init__()
@@ -87,10 +86,8 @@ class MaskRcnn_res50(nn.Module):
         return self.main_model(*x)
 
     def set_model(self):
-
         self.main_model = MaskrcnnModels.maskrcnn_resnet50_fpn(pretrained=True, pretrained_backbone=False, mask_branch=True)
-        self.main_model.backbone.body.conv1 = nn.Conv2d(self.input_channels, 64, kernel_size=7, stride=2, padding=3, bias=False)
-
+        # self.main_model.backbone.body.conv1 = nn.Conv2d(self.input_channels, 64, kernel_size=7, stride=2, padding=3, bias=False)
         # 层数预测分支
         self.main_model.roi_heads.nos_roi_pool = MultiScaleRoIAlign(
             featmap_names=['0', '1', '2', '3'],
@@ -110,8 +107,6 @@ class MaskRcnn_res50(nn.Module):
         self.main_model.roi_heads.mask_roi_pool = None
         self.main_model.roi_heads.mask_head = None
         self.main_model.roi_heads.mask_predictor = None
-
-
 
     def init_end(self):
         if not hasattr(self, 'gt_rpn_training'):
@@ -172,6 +167,10 @@ class MaskRcnn_res50(nn.Module):
 
     def validation_epoch_end(self, preds, gts):
         out = self.get_val_result(preds, gts)
+        return out
+
+    def test_epoch_end(self, preds, gts):
+        out = self.validation_epoch_end(preds, gts)
         return out
 
     def test_step(self, batch, save_fig=True):

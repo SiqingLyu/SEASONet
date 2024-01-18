@@ -13,7 +13,7 @@ import os
 from typing import Optional
 import cv2
 import sys
-sys.path.append('/home/dell/lsq/SEASONet_230824')
+sys.path.append('/home/dell/lsq/SEASONet_231030')
 # sys.path.append('D:\python文件库\V100\LSQNetModel_on')
 from pytorch_tools import *
 from tools import make_dir

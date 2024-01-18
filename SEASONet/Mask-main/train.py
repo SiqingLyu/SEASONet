@@ -6,7 +6,7 @@ import argparse
 from tqdm import tqdm
 from functools import reduce
 import sys
-sys.path.append('/home/dell/lsq/SEASONet_230824')
+sys.path.append('/home/dell/lsq/SEASONet_231030')
 
 from torch.utils import data
 from models import get_model
@@ -61,7 +61,7 @@ def main(cfg, writer, logger, ckptsavedir):
 
     # Load dataset
 
-    trainimg, trainlab, valimg, vallab, _, _ = make_dataset(data_path, split=[0.8, 0.2, 0.0], test_only=False)
+    trainimg, trainlab, valimg, vallab, _, _ = make_dataset(data_path, split=[0.8, 0.2, 0.0])
 
     train_dataset = MaskRcnnDataloader(trainimg, trainlab,augmentations=True, area_thd=cfg['data']['area_thd'],
                                        label_is_nos=cfg['data']['label_is_nos'], seasons_mode=cfg['data']['seasons_mode'],
@@ -231,8 +231,8 @@ if __name__ == "__main__":
     with open(args.config) as fp:
         cfg = yaml.load(fp, Loader=yaml.FullLoader)
 
-    logdir = os.path.join("../runs", os.path.basename(args.config)[:-4], "SEASONet_Nomaskboxbranch")
-    ckptsavedir = os.path.join('/media/dell/xpl/lsq/CKPTS', "SEASONet_Nomaskboxbranch")
+    logdir = os.path.join("../runs", os.path.basename(args.config)[:-4], "SEASONet_Stepread")
+    ckptsavedir = os.path.join('/media/dell/xpl/lsq/CKPTS', "SEASONet_Stepread")
     make_dir(logdir)
     make_dir(ckptsavedir)
     print(logdir)

@@ -12,7 +12,7 @@ import tiffile as tif
 import cv2
 import sys
 from math import pi
-sys.path.append('/home/dell/lsq/SEASONet_230824')
+sys.path.append('/home/dell/lsq/SEASONet_231030')
 
 IMG_EXTENSIONS = [
     '.jpg', '.JPG', '.jpeg', '.JPEG',

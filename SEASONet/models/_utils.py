@@ -5,6 +5,7 @@ from torch import nn
 from torch.jit.annotations import Dict
 import tracemalloc
 import gc
+
 class IntermediateLayerGetter(nn.ModuleDict):
     """
     Module wrapper that returns intermediate layers from a model

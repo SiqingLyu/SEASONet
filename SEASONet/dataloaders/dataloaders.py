@@ -7,7 +7,7 @@ from os.path import join
 from Data.ImageProcessor import Images, Labels
 
 
-def make_dataset(filepath, split=[0.7, 0.1, 0.2], test_only=False):
+def make_dataset(filepath, split=[0.7, 0.1, 0.2], compress=False):
     '''
     :param filepath: the root dir of img, lab and ssn
     :return: img, lab
@@ -31,7 +31,7 @@ def make_dataset(filepath, split=[0.7, 0.1, 0.2], test_only=False):
                os.listdir(join(filepath, 'image', 'season', 'winter'))]
 
     assert len(img) == len(lab)
-    if not test_only:
+    if compress:
         assert len(img) == len(ssn)
 
     assert len(img) == len(spr)
@@ -57,9 +57,8 @@ def make_dataset(filepath, split=[0.7, 0.1, 0.2], test_only=False):
     smr = np.array(smr)
     fal = np.array(fal)
     wnt = np.array(wnt)
-    seasons = np.concatenate((spr, smr, fal, wnt), axis=0)
-    lab_seasons = np.concatenate((lab, lab, lab, lab), axis=0)
-    if test_only:
+
+    if compress is False and len(ssn) == 0:
         ssn = img
     # generate sequence
     # load the path
@@ -97,7 +96,7 @@ def make_dataset(filepath, split=[0.7, 0.1, 0.2], test_only=False):
 
 
 class MaskRcnnDataloader(data.Dataset):
-    def __init__(self, imgpath, labpath, prepath=None, lab_sup_path= None,
+    def __init__(self, imgpath, labpath,
                  augmentations=False, area_thd=4,
                  label_is_nos=True, seasons_mode: str = None,
                  if_buffer=False, buffer_pixels=0):  # data loader #params nrange

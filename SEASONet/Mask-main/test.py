@@ -9,7 +9,7 @@ import shutil
 import argparse
 from tqdm import tqdm
 import sys
-sys.path.append('/home/dell/lsq/SEASONet_230824')
+sys.path.append('/home/dell/lsq/SEASONet_231030')
 
 
 from torch.utils import data
@@ -20,7 +20,7 @@ from dataloaders.dataloaders import *
 from tools import make_dir
 from pytorch_tools import *
 import random
-os.environ['CUDA_VISIBLE_DEVICES'] = '1'  # must be the same device with training
+os.environ['CUDA_VISIBLE_DEVICES'] = '0'  # must be the same device with training
 
 
 def add(num1, num2):
@@ -41,36 +41,15 @@ def main(cfg, writer, logger):
     batch_size = cfg["training"]["batch_size"]
     epochs = cfg["training"]["epochs"]
     make_dir(cfg["savepath"])
-    buffer_assist = cfg['data']['buffer_assist']
-    supervision = cfg['training']['supervision']
 
     # Load dataset
-    if buffer_assist == 'pre_assist':
-        trainimg, trainlab, valimg, vallab, _, _, trainpre, valpre, _ = make_dataset(data_path, split=[0, 0, 1],
-                                                                                     test_only=False,
-                                                                                     buffer_assist=cfg['data']['buffer_assist'],
-                                                                                     latnseason=cfg['training']['latnseason'])
-    elif supervision != 0:
-        _, _, _, _, testimg, testlab, _, _, testsup = make_dataset(data_path, split=[0, 0, 1], test_only=False,
-                                                                   latnseason=cfg['training']['latnseason'],
-                                                                   sup_name=cfg['data']['sup_name'],
-                                                                   supervision=cfg['training']['supervision']
-                                                                   )
-    else:
-        _, _, _, _, testimg, testlab = make_dataset(data_path, split=[0, 0, 1], test_only=False,
-                                                   latnseason=cfg['training']['latnseason'],
-                                                   supervision=cfg['training']['supervision']
-                                                   )
-        testpre = None
-        testsup = None
 
-    test_dataset = MaskRcnnDataloader(testimg, testlab, lab_sup_path=testsup, augmentations=False, area_thd=cfg['data']['area_thd'],
-                                     label_is_nos=cfg['data']['label_is_nos'], footprint_mode=cfg['data']['footprint_mode'],
-                                     seasons_mode=cfg['data']['seasons_mode'], sar_data=cfg['data']['sar_data'],
-                                     if_buffer=cfg['data']['if_buffer'], buffer_pixels=cfg['data']['buffer_pixels'],
-                                     buffer_assist=cfg['data']['buffer_assist'], latnseason=cfg['training']['latnseason'],
-                                     supervision=cfg['training']['supervision']
-                                      )
+    _, _, _, _, testimg, testlab = make_dataset(data_path, split=[0, 0, 1])
+
+    test_dataset = MaskRcnnDataloader(testimg, testlab, augmentations=False,
+                                      area_thd=cfg['data']['area_thd'], label_is_nos=cfg['data']['label_is_nos'],
+                                      seasons_mode=cfg['data']['seasons_mode'], if_buffer=cfg['data']['if_buffer'],
+                                      buffer_pixels=cfg['data']['buffer_pixels'])
 
     testdataloader = torch.utils.data.DataLoader(test_dataset,
         batch_size=batch_size, shuffle=True, num_workers=4, pin_memory=True, collate_fn=test_dataset.collate_fn)
@@ -95,17 +74,19 @@ def main(cfg, writer, logger):
         print("=> Will start from scratch.")
 
     model.eval()
-    test_outs = []
+    val_preds = torch.tensor([])
+    val_gts = torch.tensor([])
     with torch.no_grad():
         # for img, target, sups in tqdm(testdataloader):
         for img, target in tqdm(testdataloader):
             img = torch.tensor([item.cpu().detach().numpy() for item in img]).cuda()
             target = dicts_to_device(target, device)
             batch = img, target
-            out = model.test_step(batch, save_fig=True)
+            nos_preds, nos_gts = model.test_step(batch, save_fig=True)
             # save_predict(out, target, cfg["data"]["img_rows"], cfg["savepath"])
-            test_outs.append(out)
-        result = model.test_epoch_end(test_outs)
+            val_preds = torch.cat((val_preds, nos_preds))
+            val_gts = torch.cat((val_gts, nos_gts))
+        result = model.test_epoch_end(val_preds, val_gts)
     val_loss = result['val_loss'].cpu().detach().numpy()
     val_log = result['log']
     print('val loss:', val_loss, '\nlog info :\n', val_log)
@@ -117,8 +98,7 @@ if __name__ == "__main__":
         "--config",
         nargs="?",
         type=str,
-        default="../configs/MaskRcnn_res50.yml",
-        # default="../configs/SEASONet_sup.yml",
+        default="../configs/SEASONet.yml",
         help="Configuration file to use",
     )
 

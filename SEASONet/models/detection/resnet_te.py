@@ -34,6 +34,45 @@ def conv1x1(in_planes: int, out_planes: int, stride: int = 1) -> nn.Conv2d:
     return nn.Conv2d(in_planes, out_planes, kernel_size=1, stride=stride, bias=False)
 
 
+class ChannelAttention(nn.Module):
+    def __init__(self, inplanes):
+        super(ChannelAttention, self).__init__()
+        self.max_pool = nn.MaxPool2d(1)
+        self.avg_pool = nn.AvgPool2d(1)
+        # 通道注意力，即两个全连接层连接
+        self.fc = nn.Sequential(
+            nn.Conv2d(in_channels=inplanes, out_channels=inplanes // 16, kernel_size=1, bias=False),
+            nn.ReLU(),
+            nn.Conv2d(in_channels=inplanes // 16, out_channels=inplanes, kernel_size=1, bias=False)
+        )
+        self.sigmoid = nn.Sigmoid()
+
+    def forward(self, x):
+        max_out = self.fc(self.max_pool(x))
+        avg_out = self.fc(self.avg_pool(x))
+        # 最后输出的注意力应该为非负
+        out = self.sigmoid(max_out + avg_out)
+        return out
+
+
+class SpatialAttention(nn.Module):
+    def __init__(self):
+        super(SpatialAttention, self).__init__()
+        self.conv1 = nn.Conv2d(in_channels=2, out_channels=1, kernel_size=7, padding=7 // 2, bias=False)
+        self.sigmoid = nn.Sigmoid()
+
+    def forward(self, x):
+        # 压缩通道提取空间信息
+        max_out, _ = torch.max(x, dim=1, keepdim=True)
+        avg_out = torch.mean(x, dim=1, keepdim=True)
+        # 经过卷积提取空间注意力权重
+        x = torch.cat([max_out, avg_out], dim=1)
+        out = self.conv1(x)
+        # 输出非负
+        out = self.sigmoid(out)
+        return out
+
+
 class BasicBlock(nn.Module):
     expansion: int = 1
 
@@ -180,7 +219,7 @@ class ResNet(nn.Module):
                              "or a 3-element tuple, got {}".format(replace_stride_with_dilation))
         self.groups = groups
         self.base_width = width_per_group
-        self.conv1 = nn.Conv2d(4, self.inplanes, kernel_size=7, stride=2, padding=3,
+        self.conv1 = nn.Conv2d(3, self.inplanes, kernel_size=7, stride=2, padding=3,
                                  bias=False)
         # self.conv1_2 = nn.Conv2d(1, self.inplanes, kernel_size=7, stride=2, padding=3,
         #                          bias=False)
@@ -196,8 +235,6 @@ class ResNet(nn.Module):
                                        dilate=replace_stride_with_dilation[2])
         self.avgpool = nn.AdaptiveAvgPool2d((1, 1))
         self.fc = nn.Linear(512 * block.expansion, num_classes)
-
-        self.merge_layer = nn.Conv2d(5 * 512 * block.expansion, 512 * block.expansion, 1)
 
         for m in self.modules():
             if isinstance(m, nn.Conv2d):
@@ -254,6 +291,10 @@ class ResNet(nn.Module):
         x = self.layer3(x)
         x = self.layer4(x)
 
+        x = self.avgpool(x)
+        x = torch.flatten(x, 1)
+        x = self.fc(x)
+
         return x
 
     # def _forward_imp2(self, x: Tensor) -> Tensor:
@@ -275,20 +316,8 @@ class ResNet(nn.Module):
     #     return x
 
     def forward(self, x: Tensor) -> Tensor:
-        feature_all = self._forward_impl(x[:, 0:4, :, :])
-        feature__spring = self._forward_impl(x[:, 4:8, :, :])
-        feature__summer = self._forward_impl(x[:, 8:12, :, :])
-        feature__autumn = self._forward_impl(x[:, 12:16, :, :])
-        feature__winter = self._forward_impl(x[:, 16:20, :, :])
-        feature_merge = torch.cat([feature_all, feature__spring,
-                                   feature__summer, feature__autumn, feature__winter], 1)
 
-        x = self.merge_layer(feature_merge)
-        x = self.avgpool(x)
-        x = torch.flatten(x, 1)
-        x = self.fc(x)
-
-        return x
+        return self._forward_impl(x)
 
 
 def _resnet(
